@@ -14,6 +14,7 @@ import os.path
 from types import FunctionType, ModuleType
 from typing import Any, Callable, Mapping
 
+import mypy.util
 from mypy.fastparse import parse_type_comment
 from mypy.moduleinspect import is_c_module
 from mypy.stubdoc import (
@@ -862,8 +863,11 @@ class InspectionStubGenerator(BaseStubGenerator):
             bases_str = "(%s)" % ", ".join(bases)
         else:
             bases_str = ""
+        docstring = class_info.docstring if self._include_docstrings else None
         if types or static_properties or rw_properties or methods or ro_properties:
             output.append(f"{self._indent}class {class_name}{bases_str}:")
+            if docstring:
+                output.append(f"\n{self._indent}    {mypy.util.quote_docstring(docstring)}")
             for line in types:
                 if (
                     output
