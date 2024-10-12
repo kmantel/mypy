@@ -763,7 +763,11 @@ class InspectionStubGenerator(BaseStubGenerator):
         """Given a type, return a string representation"""
         if typ is Any:  # type: ignore[comparison-overlap]
             return "Any"
-        typename = getattr(typ, "__qualname__", typ.__name__)
+
+        try:
+            typename = getattr(typ, "__qualname__", typ.__name__)
+        except AttributeError:
+            typename = str(typ)
         module_name = self.get_obj_module(typ)
         assert module_name is not None, typ
         if module_name != "builtins":

@@ -4,7 +4,7 @@ import copy
 import re
 import sys
 import warnings
-from typing import Any, Callable, Final, List, Optional, Sequence, TypeVar, Union, cast
+from typing import Any, Callable, Final, List, Optional, Sequence, TypeVar, Union, _SpecialGenericAlias, cast
 from typing_extensions import Literal, overload
 
 from mypy import defaults, errorcodes as codes, message_registry
@@ -138,13 +138,22 @@ from ast import AST, Attribute, Call, FunctionType, Index, Name, Starred, UAdd, 
 def ast3_parse(
     source: str | bytes, filename: str, mode: str, feature_version: int = PY_MINOR_VERSION
 ) -> AST:
-    return ast3.parse(
-        source,
-        filename,
-        mode,
-        type_comments=True,  # This works the magic
-        feature_version=feature_version,
-    )
+    try:
+        return ast3.parse(
+            source,
+            filename,
+            mode,
+            type_comments=True,  # This works the magic
+            feature_version=feature_version,
+        )
+    except TypeError:
+        return ast3.parse(
+            str(source),
+            filename,
+            mode,
+            type_comments=True,  # This works the magic
+            feature_version=feature_version,
+        )
 
 
 NamedExpr = ast3.NamedExpr
@@ -290,6 +299,15 @@ def parse_type_comment(
 
     Return (ignore info, parsed type).
     """
+
+    if isinstance(type_comment, (type(bool), _SpecialGenericAlias)):
+        try:
+            type_comment = type_comment.__name__
+        except AttributeError:
+            type_comment = str(type_comment)
+    if isinstance(type_comment, str):
+        type_comment = re.sub(r'^(typing\.)+', 'typing.', type_comment)
+
     try:
         typ = ast3_parse(type_comment, "<type_comment>", "eval")
     except SyntaxError:
@@ -301,7 +319,10 @@ def parse_type_comment(
         else:
             raise
     else:
-        extra_ignore = TYPE_IGNORE_PATTERN.match(type_comment)
+        try:
+            extra_ignore = TYPE_IGNORE_PATTERN.match(type_comment)
+        except TypeError:
+            extra_ignore = TYPE_IGNORE_PATTERN.match(str(type_comment))
         if extra_ignore:
             tag: str | None = extra_ignore.group(1)
             ignored: list[str] | None = parse_type_ignore_tag(tag)
