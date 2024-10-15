@@ -39,6 +39,10 @@ from mypy.stubutil import (
 )
 
 
+class NO_DEFAULT:
+    pass
+
+
 class ExternalSignatureGenerator(SignatureGenerator):
     def __init__(
         self, func_sigs: dict[str, str] | None = None, class_sigs: dict[str, str] | None = None
@@ -315,7 +319,7 @@ class InspectionStubGenerator(BaseStubGenerator):
             for i, arg in enumerate(args):
                 # Check if the argument has a default value
                 default_value = get_default_value(i, arg)
-                if default_value is not None:
+                if default_value is not NO_DEFAULT:
                     if arg in annotations:
                         argtype = annotations[arg]
                     else:
@@ -330,11 +334,11 @@ class InspectionStubGenerator(BaseStubGenerator):
                 else:
                     arglist.append(ArgSig(arg, get_annotation(arg), default=False))
 
-        def get_pos_default(i: int, _arg: str) -> Any | None:
+        def get_pos_default(i: int, _arg: str) -> Any | NO_DEFAULT:
             if defaults and i >= len(args) - len(defaults):
                 return defaults[i - (len(args) - len(defaults))]
             else:
-                return None
+                return NO_DEFAULT
 
         add_args(args, get_pos_default)
 
@@ -345,11 +349,11 @@ class InspectionStubGenerator(BaseStubGenerator):
         elif kwonlyargs:
             arglist.append(ArgSig("*"))
 
-        def get_kw_default(_i: int, arg: str) -> Any | None:
+        def get_kw_default(_i: int, arg: str) -> Any | NO_DEFAULT:
             if kwonlydefaults:
                 return kwonlydefaults.get(arg)
             else:
-                return None
+                return NO_DEFAULT
 
         add_args(kwonlyargs, get_kw_default)
 
