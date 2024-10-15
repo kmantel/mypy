@@ -507,8 +507,20 @@ class InspectionStubGenerator(BaseStubGenerator):
             or keyword.iskeyword(attr)
         )
 
-    def get_members(self, obj: object) -> list[tuple[str, Any]]:
+    def get_obj_dict(self, obj):
         obj_dict: Mapping[str, Any] = getattr(obj, "__dict__")  # noqa: B009
+        constr = '__init__'
+        obj_constr = getattr(obj, constr)
+
+        if constr not in obj_dict and obj_constr is not getattr(object, constr):
+            obj_dict = {
+                **obj_dict,
+                **{constr: obj_constr}
+            }
+        return obj_dict
+
+    def get_members(self, obj: object) -> list[tuple[str, Any]]:
+        obj_dict: Mapping[str, Any] = self.get_obj_dict(obj)
         results = []
         for name in obj_dict:
             if self.is_skipped_attribute(name):
@@ -802,7 +814,7 @@ class InspectionStubGenerator(BaseStubGenerator):
         The result lines will be appended to 'output'. If necessary, any
         required names will be added to 'imports'.
         """
-        raw_lookup: Mapping[str, Any] = getattr(cls, "__dict__")  # noqa: B009
+        raw_lookup: Mapping[str, Any] = self.get_obj_dict(cls)
         items = self.get_members(cls)
         if self.resort_members:
             items = sorted(items, key=lambda x: method_name_sort_key(x[0]))
